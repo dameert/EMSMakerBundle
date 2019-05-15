@@ -1,0 +1,49 @@
+{
+	"name" : "elasticms/maker-bundle",
+	"description" : "Allows the creation of a demo site, and the creation of default configurations for website creators.",
+	"type" : "symfony-bundle",
+	"keywords" : [
+		"elasticms"
+	],
+	"license" : "MIT",
+	"authors" : [
+		{
+			"name" : "David Meert",
+			"email" : "david.meert@smals.be"
+		}
+	],
+	"require" : {
+		"php" : ">=7.1",
+		"elasticms/core-bundle" : "^1.9"
+	},
+	"require-dev" : {
+		"phpunit/phpunit" : "^5.7",
+		"mockery/mockery" : "^0.9.9",
+		"symfony/phpunit-bridge": "^4.1",
+		"squizlabs/php_codesniffer": "3.*",
+		"phpstan/phpstan": "^0.11.4"
+	},
+	"autoload" : {
+		"psr-4" : {
+			"EMS\\MakerBundle\\" : ""
+		},
+		"exclude-from-classmap" : [
+			"tests/"
+		]
+	},
+	"autoload-dev" : {
+		"psr-4" : {
+			"EMS\\MakerBundle\\Tests\\" : "tests/"
+		}
+	},
+	"extra" : {
+		"branch-alias" : {
+			"dev-master" : "0.1-dev"
+		}
+	},
+	"scripts": {
+		"phpcs": "phpcs --standard=phpcs.xml.dist --extensions=php,lib,inc",
+		"phpcbf": "phpcbf --standard=phpcs.xml.dist --extensions=php,lib,inc",
+		"phpstan": "phpstan analyse ."
+	}
+}
