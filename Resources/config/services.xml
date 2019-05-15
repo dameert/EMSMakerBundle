@@ -1,0 +1,33 @@
+<?xml version="1.0" ?>
+<container xmlns="http://symfony.com/schema/dic/services"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://symfony.com/schema/dic/services
+        http://symfony.com/schema/dic/services/services-1.0.xsd">
+
+    <services>
+        <defaults public="false" />
+
+        <service id="ems_maker.parser" class="EMS\MakerBundle\Service\JsonMakeFileParser">
+        </service>
+
+        <!-- commands -->
+        <service id="ems_maker.command.analyser" class="EMS\MakerBundle\Command\AnalyserCommand">
+            <tag name="console.command"/>
+        </service>
+        <service id="ems_maker.command.contenttype" class="EMS\MakerBundle\Command\ContentTypeCommand">
+            <tag name="console.command"/>
+        </service>
+        <service id="ems_maker.command.demo" class="EMS\MakerBundle\Command\DemoCommand">
+            <tag name="console.command"/>
+        </service>
+        <service id="ems_maker.command.environment" class="EMS\MakerBundle\Command\EnvironmentCommand">
+            <tag name="console.command"/>
+        </service>
+        <service id="ems_maker.command.revision" class="EMS\MakerBundle\Command\RevisionCommand">
+            <tag name="console.command"/>
+        </service>
+        <service id="ems_maker.command.user" class="EMS\MakerBundle\Command\UserCommand">
+            <tag name="console.command"/>
+        </service>
+    </services>
+</container>
