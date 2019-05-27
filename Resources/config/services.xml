@@ -9,6 +9,9 @@
 
         <service id="ems_maker.parser" class="EMS\MakerBundle\Service\JsonMakeFileParser">
         </service>
+        
+        <service id="ems_maker.service.command" class="EMS\MakerBundle\Service\CommandService">
+        </service>
 
         <!-- commands -->
         <service id="ems_maker.command.analyser" class="EMS\MakerBundle\Command\AnalyserCommand">
@@ -16,6 +19,9 @@
         </service>
         <service id="ems_maker.command.contenttype" class="EMS\MakerBundle\Command\ContentTypeCommand">
             <tag name="console.command"/>
+            <argument key="$environmentService" type="service" id="ems.service.environment"/>
+            <argument key="$contentTypeService" type="service" id="ems.service.contenttype"/>
+            <argument key="$commandService" type="service" id="ems_maker.service.command"/>
         </service>
         <service id="ems_maker.command.demo" class="EMS\MakerBundle\Command\DemoCommand">
             <tag name="console.command"/>
