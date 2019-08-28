@@ -2,18 +2,17 @@
 
 namespace EMS\MakerBundle\Command;
 
+use EMS\CoreBundle\Entity\ContentType;
+use EMS\CoreBundle\Entity\Environment;
+use EMS\CoreBundle\Service\EnvironmentService;
+use EMS\CoreBundle\Service\ContentTypeService;
+use EMS\MakerBundle\Service\FileService;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use EMS\CoreBundle\Service\EnvironmentService;
-use EMS\CoreBundle\Entity\Environment;
-use EMS\CoreBundle\Service\ContentTypeService;
-use EMS\CoreBundle\Entity\ContentType;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Console\Question\ConfirmationQuestion;
-use EMS\MakerBundle\Service\CommandService;
 
 class ContentTypeCommand extends Command
 {
@@ -30,26 +29,18 @@ class ContentTypeCommand extends Command
      * create the missing contenttype(s) first. (ask for each one separatly) --> if response is NO, we should still create content type
      */
  
-    /**
-     * @var EnvironmentService
-     */
+    /** @var EnvironmentService */
     protected $environmentService;
-    
-    /**
-     * @var ContentTypeService
-     */
+    /** @var ContentTypeService */
     protected $contentTypeService;
+    /** @var FileService */
+    protected $fileService;
     
-    /**
-     * @var CommandService
-     */
-    protected $commandService;
-    
-    public function __construct(EnvironmentService $environmentService, ContentTypeService $contentTypeService, CommandService $commandService)
+    public function __construct(EnvironmentService $environmentService, ContentTypeService $contentTypeService, FileService $fileService)
     {
         $this->environmentService = $environmentService;
         $this->contentTypeService = $contentTypeService;
-        $this->commandService = $commandService;
+        $this->fileService = $fileService;
         parent::__construct();
     }
     
@@ -57,10 +48,27 @@ class ContentTypeCommand extends Command
     protected function configure()
     {
         parent::configure();
-        $this->addArgument('contenttypes', InputArgument::IS_ARRAY | InputArgument::OPTIONAL, sprintf('one/more of content types list [%s]', implode(', ', array_keys($this->commandService->getDemoFiles($this->getDefaultName())))))
-        ->addOption('environment', null, InputOption::VALUE_REQUIRED, 'Environment default (preview)', 'preview')
-        ->addOption('all', null, InputOption::VALUE_NONE, 'create all demo content types');
-        /* @TODO add option for group(folder)  */
+        $fileNames = implode(', ', $this->fileService->getFileNames(FileService::TYPE_CONTENTTYPE));
+        $this
+            ->addArgument(
+                'contenttypes',
+                InputArgument::IS_ARRAY | InputArgument::OPTIONAL,
+                sprintf('Optional array of contenttypes to create. Allowed values: [%s]', $fileNames)
+            )
+            ->addOption(
+                'environment',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Default environment for the contenttypes',
+                'preview'
+            )
+            ->addOption(
+                'all',
+                null,
+                InputOption::VALUE_NONE,
+                sprintf('Make all contenttypes: [%s]', $fileNames)
+            )
+        ;
     }
     
     public function execute(InputInterface $input, OutputInterface $output)
@@ -71,11 +79,11 @@ class ContentTypeCommand extends Command
         $givenEnv = $input->getOption('environment');
         $all = $input->getOption('all');
 
-        /** @var EMS\CoreBundle\Entity\Environment $environment */
+        /** @var Environment $environment */
         $environment = $this->environmentService->getByName($givenEnv);
         if ($environment == false) {
             //TODO test If env not exist propose created?
-            $output->writeln('Environment ' . $givenEnv . ' not exist');
+            $output->writeln('Environment ' . $givenEnv . ' does not exist');
             return null;
         }
         
@@ -86,20 +94,29 @@ class ContentTypeCommand extends Command
                 $all = false;
             }
         }
-        
-        if ($all || (!$all && count($givenTypes) == 0)) {
-            $givenTypes = array_keys($this->commandService->getDemoFiles($this->getDefaultName()));
+
+        $allTypes = $this->fileService->getFileNames(FileService::TYPE_CONTENTTYPE);
+        if ($all) {
+            $givenTypes = $allTypes;
+        }
+
+        if (!$all && count($givenTypes) == 0) {
+            $output->writeln('Pass at least one contenttype, or the option --all');
+            return null;
         }
 
         foreach ($givenTypes as $type) {
-            /* @TODO Review $jsonFile must be an array => foreach for $jsonFile */
-            $values = $this->commandService->getDemoFiles($this->getDefaultName());
-            /** @var UploadedFile $jsonFile */
-            $jsonFile = $this->commandService->getDemoFile($values[$type], $this->getDefaultName());
+            /* @TODO Review $json must be an array => foreach for $jsonFile */
+            /** @var string $json */
+            $json = $this->fileService->getFileContentsByFileName($type, FileService::TYPE_CONTENTTYPE);
+            if ($json === null){
+                $output->writeln(sprintf('Skipped %s, because no file with that name was not found', $type));
+            }
             /** @var ContentType $contentType */
-            $contentType = $this->contentTypeService->initFromJson($jsonFile, $environment);
-            $contentType = $this->contentTypeService->persistAsNew($contentType);
-            $output->writeln('content Type' . $contentType->getName() . ' has been created');
+            //$contentType = $this->contentTypeService->initFromJson($jsonFile, $environment);
+            //$contentType = $this->contentTypeService->persistAsNew($contentType);
+            //$output->writeln('content Type' . $contentType->getName() . ' has been created');
+            $output->writeln('json contents:       ' . $json);
         }
     }
 }
