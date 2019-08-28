@@ -10,7 +10,7 @@ class CommandService
     
     private $dirDemo = ['ems:make:contenttype' => __DIR__ . '/../Resources/make/contenttype' ];
     
-    public function getDemoFiles($commandType): Array
+    public function getDemoFiles($commandType): array
     {
         $finder = new Finder();
         $finder = $finder->files()->name('*.json')->in($this->dirDemo[$commandType]);
