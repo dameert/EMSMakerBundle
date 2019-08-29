@@ -107,16 +107,22 @@ class ContentTypeCommand extends Command
 
         foreach ($givenTypes as $type) {
             /* @TODO Review $json must be an array => foreach for $jsonFile */
-            /** @var string $json */
+            /** @var string|null $json */
             $json = $this->fileService->getFileContentsByFileName($type, FileService::TYPE_CONTENTTYPE);
-            if ($json === null){
-                $output->writeln(sprintf('Skipped %s, because no file with that name was not found', $type));
+            if ($json === null) {
+                $output->writeln(sprintf('Skipped %s, because no file was found with that name', $type));
+                continue;
             }
-            /** @var ContentType $contentType */
-            //$contentType = $this->contentTypeService->initFromJson($jsonFile, $environment);
-            //$contentType = $this->contentTypeService->persistAsNew($contentType);
-            //$output->writeln('content Type' . $contentType->getName() . ' has been created');
-            $output->writeln('json contents:       ' . $json);
+
+            try{
+                /** @var ContentType $contentType */
+                $contentType = $this->contentTypeService->contentTypeFromJson($json, $environment);
+                $contentType = $this->contentTypeService->importContentType($contentType);
+            } catch (\Exception $e) {
+                $output->writeln($e->getMessage());
+                continue;
+            }
+            $output->writeln(sprintf('Contenttype %s has been created', $contentType->getName()));
         }
     }
 }

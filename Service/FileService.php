@@ -2,7 +2,6 @@
 namespace EMS\MakerBundle\Service;
 
 use Symfony\Component\Finder\Finder;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Finder\SplFileInfo;
 
 class FileService
