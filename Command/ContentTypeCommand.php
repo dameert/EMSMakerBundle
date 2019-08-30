@@ -12,30 +12,28 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Question\ConfirmationQuestion;
+use Symfony\Component\Console\Question\ChoiceQuestion;
+use Symfony\Component\Console\Style\SymfonyStyle;
 
 class ContentTypeCommand extends Command
 {
     protected static $defaultName = 'ems:make:contenttype';
-  
-    /**
-     * create a contenttype based on a selection (input) in the Resource/make/contenttype folder.
-     * --help should include the list of files in that folder
-     *
-     * Pass the desired contenttypes to create to the command (or --all ?)
-     * Pass the desired default environment, ask to create if the environment does not exist
-     *
-     * If the command tries to create a contenttype that links to a contenttype that does not exist, ask interactively if we can
-     * create the missing contenttype(s) first. (ask for each one separatly) --> if response is NO, we should still create content type
-     */
- 
+
     /** @var EnvironmentService */
     protected $environmentService;
     /** @var ContentTypeService */
     protected $contentTypeService;
     /** @var FileService */
     protected $fileService;
-    
+    /** @var SymfonyStyle */
+    private $io;
+    /** @var Environment */
+    private $environment;
+
+    const ARGUMENT_CONTENTTYPES = 'contenttypes';
+    const OPTION_ALL = 'all';
+    const OPTION_ENV = 'environment';
+
     public function __construct(EnvironmentService $environmentService, ContentTypeService $contentTypeService, FileService $fileService)
     {
         $this->environmentService = $environmentService;
@@ -43,16 +41,15 @@ class ContentTypeCommand extends Command
         $this->fileService = $fileService;
         parent::__construct();
     }
-    
-    
+
     protected function configure()
     {
         parent::configure();
         $fileNames = implode(', ', $this->fileService->getFileNames(FileService::TYPE_CONTENTTYPE));
         $this
             ->addArgument(
-                'contenttypes',
-                InputArgument::IS_ARRAY | InputArgument::OPTIONAL,
+                self::ARGUMENT_CONTENTTYPES,
+                InputArgument::IS_ARRAY,
                 sprintf('Optional array of contenttypes to create. Allowed values: [%s]', $fileNames)
             )
             ->addOption(
@@ -63,50 +60,18 @@ class ContentTypeCommand extends Command
                 'preview'
             )
             ->addOption(
-                'all',
+                self::OPTION_ALL,
                 null,
                 InputOption::VALUE_NONE,
                 sprintf('Make all contenttypes: [%s]', $fileNames)
-            )
-        ;
+            );
     }
-    
+
     public function execute(InputInterface $input, OutputInterface $output)
     {
-        /** @var array $givenTypes */
-        $givenTypes = $input->getArgument('contenttypes');
-        /** @var string $givenEnv */
-        $givenEnv = $input->getOption('environment');
-        $all = $input->getOption('all');
+        $types = $input->getArgument(self::ARGUMENT_CONTENTTYPES);
 
-        /** @var Environment $environment */
-        $environment = $this->environmentService->getByName($givenEnv);
-        if ($environment == false) {
-            //TODO test If env not exist propose created?
-            $output->writeln('Environment ' . $givenEnv . ' does not exist');
-            return null;
-        }
-        
-        if ($all and (count($givenTypes) > 0)) {
-            $helper = $this->getHelper('question');
-            $question = new ConfirmationQuestion(sprintf('Preferes you create all content types ? (yes = all, no = only [%s]) ', implode(', ', $givenTypes)), false);
-            if (!$helper->ask($input, $output, $question)) {
-                $all = false;
-            }
-        }
-
-        $allTypes = $this->fileService->getFileNames(FileService::TYPE_CONTENTTYPE);
-        if ($all) {
-            $givenTypes = $allTypes;
-        }
-
-        if (!$all && count($givenTypes) == 0) {
-            $output->writeln('Pass at least one contenttype, or the option --all');
-            return null;
-        }
-
-        foreach ($givenTypes as $type) {
-            /* @TODO Review $json must be an array => foreach for $jsonFile */
+        foreach ($types as $type) {
             /** @var string|null $json */
             $json = $this->fileService->getFileContentsByFileName($type, FileService::TYPE_CONTENTTYPE);
             if ($json === null) {
@@ -114,9 +79,9 @@ class ContentTypeCommand extends Command
                 continue;
             }
 
-            try{
+            try {
                 /** @var ContentType $contentType */
-                $contentType = $this->contentTypeService->contentTypeFromJson($json, $environment);
+                $contentType = $this->contentTypeService->contentTypeFromJson($json, $this->environment);
                 $contentType = $this->contentTypeService->importContentType($contentType);
             } catch (\Exception $e) {
                 $output->writeln($e->getMessage());
@@ -125,4 +90,71 @@ class ContentTypeCommand extends Command
             $output->writeln(sprintf('Contenttype %s has been created', $contentType->getName()));
         }
     }
+
+    protected function initialize(InputInterface $input, OutputInterface $output)
+    {
+        $this->io = new SymfonyStyle($input, $output);
+    }
+
+    protected function interact(InputInterface $input, OutputInterface $output)
+    {
+        $this->io->title('Make contenttypes');
+        $this->io->section('Checking input');
+
+        $types = $input->getArgument(self::ARGUMENT_CONTENTTYPES);
+
+        if (!$input->getOption(self::OPTION_ALL) && count($types) == 0) {
+            $this->chooseTypes($input, $output);
+        }
+
+        if ($input->getOption(self::OPTION_ALL)) {
+            $this->optionAll($input);
+        }
+
+        $this->checkEnvironment($input);
+    }
+
+    private function chooseTypes(InputInterface $input, OutputInterface $output): void
+    {
+        $helper = $this->getHelper('question');
+        $question = new ChoiceQuestion(
+            'Select the contenttypes you want to import',
+            array_merge([self::OPTION_ALL], $this->fileService->getFileNames(FileService::TYPE_CONTENTTYPE))
+        );
+        $question->setMultiselect(true);
+
+        $types = $helper->ask($input, $output, $question);
+        if (in_array(self::OPTION_ALL, $types)) {
+            $input->setOption(self::OPTION_ALL, true);
+            $this->io->note(sprintf('Continuing with option --%s', self::OPTION_ALL));
+        } else {
+            $input->setArgument(self::ARGUMENT_CONTENTTYPES, $types);
+            $this->io->note(['Continuing with contenttypes:', implode(', ', $types)]);
+        }
+    }
+
+    private function optionAll(InputInterface $input): void
+    {
+        $types = $this->fileService->getFileNames(FileService::TYPE_CONTENTTYPE);
+        $input->setArgument(self::ARGUMENT_CONTENTTYPES, $types);
+        $this->io->note(['Continuing with contenttypes:', implode(', ', $types)]);
+    }
+
+    private function checkEnvironment(InputInterface $input): void
+    {
+        $env = $input->getOption(self::OPTION_ENV);
+        /** @var Environment $environment */
+        $environment = $this->environmentService->getByName($env);
+        if ($environment === false) {
+            $this->io->caution('Environment ' . $env . ' does not exist');
+            $env = $this->io->choice('Select an existing environment as default', $this->environmentService->getEnvironmentNames());
+            $input->setOption(self::OPTION_ENV, $env);
+        }
+
+        $environment = $this->environmentService->getByName($env);
+        $this->environment = $environment;
+
+        $this->io->note(sprintf('Continuing with environment %s', $env));
+    }
+
 }
