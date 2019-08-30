@@ -1,6 +1,7 @@
 <?php
 namespace EMS\MakerBundle\Service;
 
+use Symfony\Component\Filesystem\Exception\FileNotFoundException;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
 
@@ -15,34 +16,34 @@ class FileService
     const TYPE_USER = 'user';
     const TYPES = [self::TYPE_ANALYSER, self::TYPE_CONTENTTYPE, self::TYPE_ENVIRONMENT, self::TYPE_REVISION, self::TYPE_USER];
 
-    public function getFileNames(string $subDirectory): array
+    public function getFileNames(string $type): array
     {
-        if (!in_array($subDirectory, self::TYPES)) {
+        if (!in_array($type, self::TYPES)) {
             return [];
         }
 
         $finder = new Finder();
-        $finder = $finder->files()->name('*.json')->in(self::JSON_FILES . $subDirectory);
-        $values = [];
+        $finder = $finder->files()->name('*.json')->in(self::JSON_FILES . $type);
+
+        $names = [];
         /** @var SplFileInfo $file **/
         foreach ($finder as $file) {
-            $values[] = substr($file->getBasename(), 0, strpos($file->getBasename(), $file->getExtension()) - 1);
+            $names[] = $file->getBasename('.json');
         }
-        return $values;
+        return $names;
     }
     
-    public function getFileContentsByFileName(string $name, string $subDirectory): ?string
+    public function getFileContentsByFileName(string $name, string $type): string
     {
+        $path = self::JSON_FILES . $type;
         $finder = new Finder();
-        $finder = $finder->files()->name($name . '.json')->in(self::JSON_FILES . $subDirectory);
-
-        if (count($finder) !== 1) {
-            return null;// TODO throw error instead
-        }
+        $finder = $finder->files()->name($name . '.json')->in($path);
 
         foreach ($finder as $file) {
             /** @var SplFileInfo $file **/
             return $file->getContents();
         }
+
+        throw new FileNotFoundException(null, 0, null, $path . '/' . $name . '.json');
     }
 }
