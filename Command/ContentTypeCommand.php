@@ -69,6 +69,7 @@ class ContentTypeCommand extends Command
 
     public function execute(InputInterface $input, OutputInterface $output)
     {
+        /** @var array $types */
         $types = $input->getArgument(self::ARGUMENT_CONTENTTYPES);
 
         foreach ($types as $type) {
@@ -101,6 +102,7 @@ class ContentTypeCommand extends Command
         $this->io->title('Make contenttypes');
         $this->io->section('Checking input');
 
+        /** @var array $types */
         $types = $input->getArgument(self::ARGUMENT_CONTENTTYPES);
 
         if (!$input->getOption(self::OPTION_ALL) && count($types) == 0) {
@@ -142,19 +144,20 @@ class ContentTypeCommand extends Command
 
     private function checkEnvironment(InputInterface $input): void
     {
+        /** @var string $env */
         $env = $input->getOption(self::OPTION_ENV);
-        /** @var Environment $environment */
+        /** @var Environment|false $environment */
         $environment = $this->environmentService->getByName($env);
+
         if ($environment === false) {
             $this->io->caution('Environment ' . $env . ' does not exist');
             $env = $this->io->choice('Select an existing environment as default', $this->environmentService->getEnvironmentNames());
             $input->setOption(self::OPTION_ENV, $env);
+            $this->checkEnvironment($input);
+            return;
         }
 
-        $environment = $this->environmentService->getByName($env);
         $this->environment = $environment;
-
         $this->io->note(sprintf('Continuing with environment %s', $env));
     }
-
 }
