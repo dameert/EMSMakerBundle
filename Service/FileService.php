@@ -1,6 +1,7 @@
 <?php
 namespace EMS\MakerBundle\Service;
 
+use EMS\MakerBundle\Maker\FileNames;
 use Symfony\Component\Filesystem\Exception\FileNotFoundException;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
@@ -16,19 +17,19 @@ class FileService
     const TYPE_USER = 'user';
     const TYPES = [self::TYPE_ANALYSER, self::TYPE_CONTENTTYPE, self::TYPE_ENVIRONMENT, self::TYPE_REVISION, self::TYPE_USER];
 
-    public function getFileNames(string $type): array
+    public function getFileNames(string $type): FileNames
     {
+        $names = new FileNames();
         if (!in_array($type, self::TYPES)) {
-            return [];
+            return $names;
         }
 
         $finder = new Finder();
         $finder = $finder->files()->name('*.json')->in(self::JSON_FILES . $type);
 
-        $names = [];
         /** @var SplFileInfo $file **/
         foreach ($finder as $file) {
-            $names[] = $file->getBasename('.json');
+            $names->addName($file->getBasename('.json'));
         }
         return $names;
     }

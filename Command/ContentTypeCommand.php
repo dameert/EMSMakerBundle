@@ -7,13 +7,11 @@ use EMS\CoreBundle\Entity\Environment;
 use EMS\CoreBundle\Service\EnvironmentService;
 use EMS\CoreBundle\Service\ContentTypeService;
 use EMS\MakerBundle\Service\FileService;
-use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\ChoiceQuestion;
-use Symfony\Component\Console\Style\SymfonyStyle;
 
 class ContentTypeCommand extends MakeCommand
 {
@@ -34,18 +32,17 @@ class ContentTypeCommand extends MakeCommand
     {
         $this->environmentService = $environmentService;
         $this->contentTypeService = $contentTypeService;
-        parent::__construct($fileService);
+        parent::__construct($fileService, FileService::TYPE_CONTENTTYPE);
     }
 
     protected function configure()
     {
         parent::configure();
-        $fileNames = implode(', ', $this->fileService->getFileNames(FileService::TYPE_CONTENTTYPE));
         $this
             ->addArgument(
                 self::ARGUMENT_CONTENTTYPES,
                 InputArgument::IS_ARRAY,
-                sprintf('Optional array of contenttypes to create. Allowed values: [%s]', $fileNames)
+                sprintf('Optional array of contenttypes to create. Allowed values: [%s]', (string) $this->fileNames)
             )
             ->addOption(
                 'environment',
@@ -58,7 +55,7 @@ class ContentTypeCommand extends MakeCommand
                 self::OPTION_ALL,
                 null,
                 InputOption::VALUE_NONE,
-                sprintf('Make all contenttypes: [%s]', $fileNames)
+                sprintf('Make all contenttypes: [%s]', (string) $this->fileNames)
             );
     }
 
@@ -67,10 +64,10 @@ class ContentTypeCommand extends MakeCommand
         /** @var array $types */
         $types = $input->getArgument(self::ARGUMENT_CONTENTTYPES);
 
-        foreach ($types as $type) {
+        foreach ($types as $typeName) {
             try {
                 /** @var string $json */
-                $json = $this->fileService->getFileContentsByFileName($type, FileService::TYPE_CONTENTTYPE);
+                $json = $this->fileService->getFileContentsByFileName($typeName, FileService::TYPE_CONTENTTYPE);
                 /** @var ContentType $contentType */
                 $contentType = $this->contentTypeService->contentTypeFromJson($json, $this->environment);
                 $contentType = $this->contentTypeService->importContentType($contentType);
@@ -105,7 +102,7 @@ class ContentTypeCommand extends MakeCommand
         $helper = $this->getHelper('question');
         $question = new ChoiceQuestion(
             'Select the contenttypes you want to import',
-            array_merge([self::OPTION_ALL], $this->fileService->getFileNames(FileService::TYPE_CONTENTTYPE))
+            array_merge([self::OPTION_ALL], $this->fileNames->toArray())
         );
         $question->setMultiselect(true);
 
@@ -121,9 +118,8 @@ class ContentTypeCommand extends MakeCommand
 
     private function optionAll(InputInterface $input): void
     {
-        $types = $this->fileService->getFileNames(FileService::TYPE_CONTENTTYPE);
-        $input->setArgument(self::ARGUMENT_CONTENTTYPES, $types);
-        $this->io->note(['Continuing with contenttypes:', implode(', ', $types)]);
+        $input->setArgument(self::ARGUMENT_CONTENTTYPES, $this->fileNames->toArray());
+        $this->io->note(['Continuing with contenttypes:', (string) $this->fileNames]);
     }
 
     private function checkEnvironment(InputInterface $input): void
