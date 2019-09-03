@@ -15,18 +15,14 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\ChoiceQuestion;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
-class ContentTypeCommand extends Command
+class ContentTypeCommand extends MakeCommand
 {
     protected static $defaultName = 'ems:make:contenttype';
 
     /** @var EnvironmentService */
-    protected $environmentService;
+    private $environmentService;
     /** @var ContentTypeService */
-    protected $contentTypeService;
-    /** @var FileService */
-    protected $fileService;
-    /** @var SymfonyStyle */
-    private $io;
+    private $contentTypeService;
     /** @var Environment */
     private $environment;
 
@@ -38,8 +34,7 @@ class ContentTypeCommand extends Command
     {
         $this->environmentService = $environmentService;
         $this->contentTypeService = $contentTypeService;
-        $this->fileService = $fileService;
-        parent::__construct();
+        parent::__construct($fileService);
     }
 
     protected function configure()
@@ -84,11 +79,6 @@ class ContentTypeCommand extends Command
                 $this->io->error($e->getMessage());
             }
         }
-    }
-
-    protected function initialize(InputInterface $input, OutputInterface $output)
-    {
-        $this->io = new SymfonyStyle($input, $output);
     }
 
     protected function interact(InputInterface $input, OutputInterface $output)
